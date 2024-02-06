@@ -83,3 +83,6 @@ if __name__ == "__main__":
                    jpeg_quality=jpeg_quality, direction=direction)
     with mp.Pool(processes=process_count) as pool:
         pool.map(func, task)
+
+    print("\nDone.")
+    input()
