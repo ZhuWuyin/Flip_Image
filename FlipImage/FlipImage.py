@@ -6,7 +6,7 @@ import multiprocessing as mp
 from functools import partial
 
 
-def getFileInfo(s):
+def get_file_info(s):
     pat = r"(.+?)(\.png|\.jpg|\.jpeg)$"
     m = re.search(pat, s, re.IGNORECASE)
     if m is None:
@@ -15,12 +15,16 @@ def getFileInfo(s):
 
 
 def path_fix(path: str):
-    if path[-1] != "/" or path[-1] != "\\":
-        path += "\\"
-    return path
+    for i in range(len(path)):
+        if path[i].isalpha():
+            break
+    path = path[i:].strip("\"")
+    if path[-1] == "'":
+        path = path[:-1]
+    return os.path.normpath(path)+"\\"
 
 
-def openImage(path):
+def open_image(path):
     with open(path, 'rb') as file:
         content = file.read()
         image = cv2.imdecode(np.frombuffer(
@@ -28,31 +32,47 @@ def openImage(path):
     return image
 
 
-def mainFunc(images: list[str], source, dest, jpeg_quality, direction) -> None:
+def save_image(folder_name, filename, extension, image, jpeg_quality) -> None:
+    ret, image = cv2.imencode(
+        extension, image, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+    path = folder_name + filename + extension
+    if not ret:
+        print(path, "->", ret)
+    image.tofile(path)
+
+
+def main_func(images: list[str], source, dest, jpeg_quality, direction) -> None:
     for i in images:
-        fileInfo = getFileInfo(i)
+        fileInfo = get_file_info(i)
         if not fileInfo is None:
-            filename = ''.join(fileInfo)
-            image = openImage(source+filename)
+            extension = fileInfo[1]
+            filename = fileInfo[0]
+            image = open_image(source+filename+extension)
             if direction == "diagonal":
                 image = np.flip(image, axis=0)
                 image = np.flip(image, axis=1)
             else:
                 axis = 0 if direction == "vertical" else 1
                 image = np.flip(image, axis=axis)
-            cv2.imwrite(dest+filename, image,
-                        [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+            save_image(dest, filename, extension, image, jpeg_quality)
+
+
+def get_folder_name(folder_type: str):
+    folder = ""
+    while True:
+        folder = path_fix(input("{0} folder: ".format(folder_type)))
+        if not os.path.exists(folder):
+            print("Notice: \"" + folder + "\"", "does not exist, try again.")
+            continue
+        break
+    return folder
 
 
 if __name__ == "__main__":
     mp.freeze_support()
-    source = input("Source folder: ")
-    source = path_fix(source)
+    source = get_folder_name("Source")
     images = os.listdir(source)
-    dest = input("Target folder: ")
-    dest = path_fix(dest)
-    if not os.path.exists(dest):
-        os.makedirs(dest, exist_ok=True)
+    dest = get_folder_name("Target")
     jpeg_quality = int(input(r"JPEG/JPG quality(0 - 100): "))
     while True:
         direction = input(
@@ -79,7 +99,7 @@ if __name__ == "__main__":
             task[counter].append(images[remain])
             counter += 1
 
-    func = partial(mainFunc, source=source, dest=dest,
+    func = partial(main_func, source=source, dest=dest,
                    jpeg_quality=jpeg_quality, direction=direction)
     with mp.Pool(processes=process_count) as pool:
         pool.map(func, task)
