@@ -15,6 +15,7 @@ def get_file_info(s):
 
 
 def path_fix(path: str):
+    i = 0
     for i in range(len(path)):
         if path[i].isalpha():
             break
@@ -28,7 +29,7 @@ def open_image(path):
     with open(path, 'rb') as file:
         content = file.read()
         image = cv2.imdecode(np.frombuffer(
-            content, np.uint8), cv2.IMREAD_COLOR)
+            content, np.uint8), cv2.IMREAD_UNCHANGED)
     return image
 
 
@@ -88,6 +89,8 @@ if __name__ == "__main__":
     if step == 0:
         task = [[i] for i in images]
     else:
+        start_index = 0
+
         for i in range(process_count):
             start_index = i*step
             element = [images[j] for j in range(start_index, start_index+step)]
